@@ -1,0 +1,371 @@
+---
+title: "ass3"
+author: "Sasa"
+date: "2024-05-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 2
+
+### (1)
+
+sample a dataset:
+
+```{r}
+library('wiqid')
+
+set.seed(517)
+y <- rep(0,10)
+
+x <- runif(10,)
+n <- rep(0,10)
+for(j in 1:10){
+  while(n[j] == 0){
+    n[j] <- rpois(1,5)
+  }
+}
+
+alpha <- rt3(1,0,2,4)
+beta <- rt3(1,0,1,4)
+  
+for(j in 1:10){
+  theta <- exp(alpha+beta*x[j])/(1+exp(alpha+beta*x[j]))
+  y[j] <- rbinom(1,n[j],theta)
+}
+```
+
+
+```{r}
+x; n; y
+```
+
+
+### (2)
+
+Compute the joint posterior distribution at a grid of points (α,β), to determine a positive function g(α,β) proportional to p(α,β).
+
+```{r fig.height=5, fig.width=4}
+q <- function(alpha, beta){
+  p <- dt3(alpha,0,2,4) * dt3(beta,0,1,4)
+  for(j in 1:10){
+    theta <- exp(alpha+beta*x[j])/(1+exp(alpha+beta*x[j]))
+    p <- p * dbinom(y[j],n[j],theta)
+  }
+  return(p)
+}
+
+alpha <- seq(-2,2,length = 400)
+beta <- seq(-4,1,length = 500)
+
+z <- outer(alpha, beta, q)
+contour(alpha, beta, z)
+```
+
+
+mean: (0, -1.3)  var: (1, 4); cov: -1
+
+
+Choose normal distribution with the above mean and sigma matrix as sampling distribution; First to determine constant M: 
+
+```{r}
+library('mnormt')
+
+set.seed(517)
+sample_size <- 10000
+ratio <- rep(0,sample_size)
+
+mu <- c(0, -1.3)
+sigma <- matrix(c(1,-1,-1,4), ncol= 2)
+  
+for(i in 1:sample_size){
+  s <-  rmnorm(1,mu,sigma)
+  g <-  dmnorm(s,mu,sigma) 
+  ratio[i] <- q(s[1],s[2])/g
+}
+
+hist(ratio)
+max(ratio)
+```
+
+Set M = 8.3e-07,now we are ready to do rejection sampling:
+
+```{r}
+set.seed(517)
+sample_size <- 10000
+sample <- matrix(0,sample_size,2)
+k <- 0
+
+for(i in 1:sample_size){
+  s <-  rmnorm(1,mu,sigma)
+  g <-  dmnorm(s,mu,sigma) 
+  ratio <- q(s[1],s[2])/(g*8.3e-07)
+  
+  if(ratio < 1){
+    if(runif(1) < ratio){
+      k <- k+1
+      sample[k,] <- s
+    }
+  }else{
+    print('ratio larger than 1')
+    print(ratio)
+  }
+}
+
+k
+sample <- sample[1:1000, ]
+```
+
+
+### (3)
+
+Determine the posterior mode with covariance matrix:
+
+```{r}
+library('dplyr')
+
+den <- density(sample[,1])
+denx=den$x
+deny=den$y
+den %>% plot(lwd = 2, col = "dodgerblue2")
+denx[which.max(deny)] %>% abline(v = ., lwd = 2, col = "red3")
+grid()
+denx[which.max(deny)]  ## -0.02037278
+```
+
+```{r}
+den <- density(sample[,2])
+denx=den$x
+deny=den$y
+den %>% plot(lwd = 2, col = "dodgerblue2")
+denx[which.max(deny)] %>% abline(v = ., lwd = 2, col = "red3")
+grid()
+denx[which.max(deny)]  ## -1.330051
+
+```
+
+
+```{r}
+var(sample)
+```
+
+
+Approximate the posterior density for (α,β) by a normal with the above determined parameter:
+
+```{r warning=FALSE}
+library(gridExtra)
+library(ggplot2)
+
+plot1 <- ggplot(as.data.frame(sample), aes(x = sample[,1], y = sample[,2])) +
+  geom_point(col = 'pink') +
+  geom_density_2d(aes(colour = after_stat(level)))+
+  scale_x_continuous(limits = c(-1.5, 1.5)) +
+  scale_y_continuous(limits = c(-4.5, 1.5))
+
+
+mu <- c(-0.02, -1.33)
+sigma <- var(sample)
+sample_norm <- rmnorm(1000, mu, sigma)
+
+plot2 <- ggplot(as.data.frame(sample_norm), aes(x = sample_norm[,1], y = sample_norm[,2])) +
+  geom_point(col = 'pink') +
+  geom_density_2d(aes(colour = after_stat(level)))+
+  scale_x_continuous(limits = c(-1.5, 1.5)) +
+  scale_y_continuous(limits = c(-4.5, 1.5))
+
+grid.arrange(plot1, plot2, nrow = 1)
+```
+
+
+
+### (4)
+
+Generate random draws from the two-dimensional $t_4$ distribution with that center and scale matrix, first use importance sampling to estimate the posterior mean of α+β and α-β:
+
+```{r}
+library('mvtnorm')
+
+sample_size <- 1000
+w <- rep(0,sample_size)
+aw <- rep(0,sample_size)
+mw <- rep(0,sample_size)
+
+for(i in 1:sample_size){
+  s <- rmvt(1,df = 4, delta = mu, sigma = sigma)
+  g <- dmvt(s,df = 4, delta = mu, sigma = sigma)
+    
+  w[i] <- q(s[1], s[2])/g
+  aw[i] <- (s[1]+s[2])*w[i]
+  mw[i] <- (s[1]-s[2])*w[i]
+}
+
+add <- sum(aw)/sum(w)
+minus <- sum(mw)/sum(w)
+```
+
+Then obtain the posterior mean of α and β:
+
+```{r}
+(add+minus) / 2
+(add-minus) / 2
+```
+
+
+### (5)
+
+ESS:
+
+```{r}
+w_n <- rep(0,sample_size)
+for (i in 1:sample_size) {
+  w_n[i] <- (w[i]/sum(w))^2
+}
+
+1/sum(w_n)
+```
+
+
+## 3
+
+### (2)
+
+Draw a contour plot of the unnormalized marginal posterior density of the hyperparameters on a grid of values: 
+ 
+```{r}
+t1 <- seq(-1.75,0.25, length=200)
+t2 <- seq(0,2.5, length=250)
+n <- c(58,90,48,57,103,57,86,112,273,64)
+y <- c(16,9,10,13,19,20,18,17,35,55)
+
+p <- function(t1,t2){
+  a <- exp(t1+t2)/(1+exp(t1))
+  b <- exp(t2)/(1+exp(t1))
+
+  p <- (10^196)*a*b*(a+b)^(-2.5)
+  for (i in 1:10) {
+    p <- p*beta(a+y[i], b+n[i]-y[i])/beta(a,b)
+  }
+  return(p)
+}
+
+p <- Vectorize(p)
+z <- outer(t1,t2,p)
+contour(t1,t2,z)
+```
+
+
+Draw simulations from the joint posterior distribution of the paremeters and hyperparameters:
+
+Draw 1000 simulations of $log(α/β)$ and $log(α+β)$:
+
+```{r}
+N = 1000
+f_t1 = rowSums(z)
+row = sample(1:200, N, replace=T, prob = f_t1)
+t1_sample = t1[row]
+
+t2_sample = numeric(N)
+for (i in 1:N){
+  col = sample(1:250, 1, prob=z[row[i], ])
+  t2_sample[i] = t2[col]
+}
+```
+
+
+```{r}
+library(ggplot2)
+sample <- as.data.frame(cbind(t1_sample,t2_sample))
+
+ggplot(sample, aes(x = sample[,1], y = sample[,2])) +
+  geom_point(col = 'pink') +
+  geom_density_2d(aes(colour = after_stat(level)))
+```
+
+
+Transform them to $(α, β)$ scale:
+
+```{r}
+alpha_sample <- exp(t1_sample+t2_sample)/(1+exp(t1_sample))
+beta_sample <- exp(t2_sample)/(1+exp(t1_sample))
+
+```
+
+
+Sample $θ_j$ from its conditional posterior distribution:
+
+```{r}
+theta_sample <- matrix(rep(0,10*1000), ncol=10)
+
+for (j in 1:10) {
+  for (i in 1:1000) {
+    theta_sample[i,j] <- rbeta(1,alpha_sample[i]+y[j], beta_sample[i]+n[j]-y[j])
+  }
+}
+```
+
+
+### (3)
+
+
+```{r}
+data <- as.data.frame(c(y/n))
+colnames(data) <- 'raw_proportions'
+data$mode <- rep(0,10)
+data$median <- rep(0,10)
+data$upper <- rep(0,10)
+data$lower <- rep(0,10)
+```
+
+
+```{r}
+for (i in 1:10) {
+  den <- density(theta_sample[,i])
+  denx=den$x
+  deny=den$y
+  den %>% plot(lwd = 2, col = "dodgerblue2")
+  denx[which.max(deny)] %>% abline(v = ., lwd = 2, col = "red3")
+  grid()
+  
+  data$mode[i] <- denx[which.max(deny)]
+}
+```
+
+
+
+```{r}
+for(i in 1:10){
+  data$upper[i] <- sort(theta_sample[,i])[50]
+  data$median[i] <- sort(theta_sample[,i])[500]
+  data$lower[i] <- sort(theta_sample[,i])[950]
+}
+
+data[, c(1,2,3)]
+```
+
+
+```{r}
+ggplot(data, aes(x = raw_proportions)) +
+  geom_point(aes(y = mode), col='#EEB0AC', )+
+  geom_point(aes(y = median), col='#9EC545')+
+  geom_abline(slope= 1, intercept= 0, linetype='dotted')+
+  geom_ribbon(aes(ymin = lower, ymax = upper), 
+              alpha = 0.1)
+```
+
+Our posterior mode and posterior median matches with the raw proportions. Experiments with high observations(high raw proportion) has a larger bias.
+
+
+### (4)
+
+Give a 95% posterior interval for the average underlying proportion of traffic that is bicycles:
+
+```{r}
+data[, c(4,5)]
+```
+
+
+
+
