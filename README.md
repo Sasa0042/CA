@@ -39,19 +39,12 @@ In addition，we can view it as count variable, conducting the poisson regressio
 
 For model comparsion, at this time, I have no idea for the method to test the goodness of fit for the glm model.
 
-### 2023/07-09   Linear regression and generalized linear regression for followers:
 
+### 2023/07-09   Survival Analysis for breast cancer:
 
+Without the knowledge of R code, I need to learn it by myself. 从GEO和TCGA上面提取乳腺癌患者的数据并进行预处理非常磨人。Similarly, after learning the basic idea of survival analysis by myself, 该次实习主要通过绘制生存分析曲线来进行探索。
 
-
-
-
-
-
-
-
-
-
+最终并没有得到好的结果，一来对生存分析相关知识背后机理不甚熟悉，二来对乳腺癌相关的研究背景专业名词也不清晰，画出的图并没有直接显示出适配的结果，我也不知道接下来该往哪里前进，就放弃了。
 
 
 
