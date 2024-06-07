@@ -1,7 +1,8 @@
 # CA
 
-### 2024/05  Bayes
+### 2024/05  Random intercept logistic regression in Bayesian setting:
 
+了解到随机截距模型可以对(相关的)分类数据进行回归，using 'brms' package to sample the posterior draws and check for the prior's distribution.
 
 
 ### 2024/05   Time series analysis for Olist e-commerce:
